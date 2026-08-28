@@ -80,6 +80,7 @@ const loadingEl = document.getElementById("loading-indicator");
 const loadingTextEl = document.getElementById("loading-text");
 const errorBoxEl = document.getElementById("error-box");
 const errorTextEl = document.getElementById("error-text");
+const errorDetailEl = document.getElementById("error-detail");
 const errorRetryBtn = document.getElementById("error-retry");
 
 const flashToggleBtn = document.getElementById("flash-toggle");
@@ -119,8 +120,22 @@ async function begin() {
   hideError();
   showLoading("Requesting camera access…");
 
+  // Reset flash UI left over from a previous attempt — otherwise a retry
+  // after an error can show the flash icon as "on" even though the stream
+  // (and any real torch) it referred to is already gone.
+  flashToggleBtn.setAttribute("aria-pressed", "false");
+  flashGlowEl.classList.remove("on");
+  flashSimOn = false;
+  torchOn = false;
+
+  // Tracks which step we were on when something throws, so the error
+  // message (and the technical detail shown under it) says what actually
+  // failed instead of always blaming "the camera" for a model/asset issue.
+  let stage = "camera";
+
   try {
     await startCamera();
+    stage = "tracking";
     showLoading("Loading hand tracking…");
     await Promise.all([loadModel(), loadRakhiMarkup()]);
 
@@ -135,10 +150,10 @@ async function begin() {
     showBanner();
     startDetectionLoop();
   } catch (err) {
-    console.error("Failed to start:", err);
+    console.error(`Failed to start (stage: ${stage}):`, err);
     stopCameraStream();
     hideLoading();
-    showError(describeError(err));
+    showError(describeError(err, stage), describeErrorDetail(err));
   }
 }
 
@@ -162,7 +177,7 @@ async function startCamera() {
     // Some laptops/desktops (and a few devices) have no rear camera at all,
     // so `exact: "environment"` throws OverconstrainedError. Fall back to
     // whatever camera is available rather than dead-ending the whole flow.
-    if (err.name !== "OverconstrainedError") throw err;
+    if (!err || err.name !== "OverconstrainedError") throw err;
     return navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false,
@@ -177,8 +192,22 @@ async function startCamera() {
   await videoEl.play();
 
   const track = stream.getVideoTracks()[0];
-  const settings = track.getSettings ? track.getSettings() : {};
-  const caps = track.getCapabilities ? track.getCapabilities() : {};
+  // getSettings/getCapabilities are widely supported but not guaranteed
+  // everywhere (and getCapabilities can itself throw on some browsers
+  // rather than just being undefined) — read them defensively so a quirk
+  // here can never take down camera startup entirely.
+  let settings = {};
+  let caps = {};
+  try {
+    settings = track.getSettings ? track.getSettings() : {};
+  } catch (err) {
+    console.error("track.getSettings() failed:", err);
+  }
+  try {
+    caps = track.getCapabilities ? track.getCapabilities() : {};
+  } catch (err) {
+    console.error("track.getCapabilities() failed:", err);
+  }
   // The rear camera is not mirrored on screen — it isn't a selfie view, it
   // shows the scene as the camera actually sees it, same as a photo.
   isMirrored = settings.facingMode === "user";
@@ -527,8 +556,10 @@ function hideLoading() {
   loadingEl.classList.add("hidden");
 }
 
-function showError(text) {
+function showError(text, detail) {
   errorTextEl.textContent = text;
+  errorDetailEl.textContent = detail || "";
+  errorDetailEl.classList.toggle("hidden", !detail);
   errorBoxEl.classList.remove("hidden");
 }
 
@@ -536,7 +567,7 @@ function hideError() {
   errorBoxEl.classList.add("hidden");
 }
 
-function describeError(err) {
+function describeError(err, stage) {
   const name = err && err.name;
   const message = err && err.message;
 
@@ -561,5 +592,23 @@ function describeError(err) {
   if (name === "SecurityError") {
     return "Camera access requires a secure connection (HTTPS or localhost).";
   }
+  // Nothing matched a known camera-permission case — say which step it
+  // actually failed on (see the `stage` tracking in begin()) instead of
+  // always blaming "the camera" for what might be a tracking/asset issue,
+  // and show the raw error below (see describeErrorDetail) so this isn't a
+  // dead end without access to the browser console.
+  if (stage === "tracking") {
+    return "Something went wrong while loading hand tracking. Please try again.";
+  }
   return "Something went wrong while starting the camera. Please try again.";
+}
+
+/** Raw technical detail shown in small print under the friendly message,
+ * so an unexpected error is diagnosable without opening devtools. */
+function describeErrorDetail(err) {
+  if (!err) return "";
+  const name = err.name;
+  const message = err.message;
+  if (name && message) return `${name}: ${message}`;
+  return name || message || String(err);
 }

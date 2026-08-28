@@ -61,7 +61,7 @@
            sequence: plain floating bold text, centered on screen, no card or
            background — fades and drifts gently into place. -->
       <div id="final-message" class="final-message" aria-live="polite">
-        <span>Happy Raksha Bandhan! 🎉</span>
+        <span>Happy Raksha Bandhan</span>
       </div>
 
       <div id="loading-indicator" class="loading-indicator">
@@ -71,6 +71,9 @@
 
       <div id="error-box" class="error-box hidden">
         <p id="error-text"></p>
+        <!-- Raw error name/message, so a failure is diagnosable from a
+             screenshot without needing to open devtools. -->
+        <p id="error-detail" class="error-detail hidden"></p>
         <button id="error-retry" class="link-button small" type="button">Try again</button>
       </div>
     </div>
