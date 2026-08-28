@@ -4,7 +4,7 @@ A small static web app: tap a link, your **back (rear) camera** opens, a
 banner animates in asking you to **show your right hand**, and once it's
 detected the banner slides back out while an animated **rakhi** ties itself
 onto your wrist once — sized, rotated, and tracked live so it always fits —
-then fades out and a plain, bold **"Happy Raksha Bandhan!"** floats into the
+then fades out and a plain, bold **"Happy Raksha Bandhan"** floats into the
 center of the screen (no card, no background) to close things out. The
 whole sequence plays exactly once per camera session: no looping, no
 re-triggering while the hand stays in view.
