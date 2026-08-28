@@ -1,0 +1,303 @@
+:root {
+  --saffron: #ff6f3c;
+  --maroon: #8a1220;
+  --gold: #ffd54f;
+  --bg: #120306;
+  --surface: #1c0810;
+  --text: #fff6ea;
+  --text-dim: rgba(255, 246, 234, 0.7);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+.screen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------- Start screen ---------------- */
+
+#start-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 213, 79, 0.15), transparent 60%),
+    linear-gradient(160deg, #1c0810 0%, #12030a 60%, #0a0206 100%);
+  padding: 24px;
+}
+
+.start-card {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  padding: 40px 28px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 213, 79, 0.25);
+  backdrop-filter: blur(6px);
+}
+
+.start-emoji {
+  font-size: 56px;
+  margin-bottom: 8px;
+}
+
+.start-card h1 {
+  margin: 0 0 12px;
+  font-size: 28px;
+  letter-spacing: 0.02em;
+  background: linear-gradient(90deg, var(--gold), var(--saffron));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.start-card p {
+  margin: 0 0 24px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  font-size: 15px;
+}
+
+.hint {
+  margin-top: 18px !important;
+  font-size: 12.5px !important;
+  opacity: 0.6;
+}
+
+.link-button {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 14px 32px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2a0a06;
+  background: linear-gradient(90deg, var(--gold), var(--saffron));
+  box-shadow: 0 8px 24px rgba(255, 111, 60, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.link-button:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(255, 111, 60, 0.45); }
+.link-button:active { transform: translateY(0); }
+
+.link-button.small {
+  padding: 10px 22px;
+  font-size: 14px;
+  margin-top: 14px;
+}
+
+/* ---------------- Camera screen ---------------- */
+
+#camera-screen {
+  background: #000;
+}
+
+.top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(14px, env(safe-area-inset-top)) 18px 14px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent);
+}
+
+.app-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.flash-btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.flash-btn[aria-pressed="true"] {
+  background: var(--gold);
+  color: #2a1400;
+  box-shadow: 0 0 18px rgba(255, 213, 79, 0.8);
+}
+
+.flash-btn:active { transform: scale(0.92); }
+
+/* Simulated "front flash" — a soft white glow that floods the top of the
+   screen when hardware torch isn't available on the selfie camera. */
+.flash-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 45vh;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(ellipse at top, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.flash-glow.on { opacity: 0.55; }
+
+.video-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#camera-feed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mirrored so the preview behaves like a real mirror (natural selfie UX) */
+  transform: scaleX(-1);
+  background: #000;
+}
+
+/* Mirrored to match the video; the rakhi is positioned using raw
+   (un-mirrored) camera-space coordinates and this transform aligns it
+   visually with the mirrored preview, exactly like the video itself. */
+.overlay-mirror {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1);
+  z-index: 10;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Positioned/rotated/sized every frame from JS to sit on the tracked wrist.
+   Its own SVG content fills it completely so the artwork scales with it. */
+.rakhi-mount {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+.rakhi-mount svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ---------------- Instruction banner (motion text) ---------------- */
+
+.instruction-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  padding: 84px 20px 18px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent);
+  transform: translateY(-140%);
+  transition: transform 0.6s cubic-bezier(0.22, 1.4, 0.36, 1);
+  pointer-events: none;
+}
+
+.instruction-banner.show {
+  transform: translateY(0);
+}
+
+.instruction-banner span {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(138, 18, 32, 0.55);
+  border: 1px solid rgba(255, 213, 79, 0.4);
+  padding: 10px 20px;
+  border-radius: 999px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------------- Loading / error ---------------- */
+
+.loading-indicator {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--gold);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-box {
+  position: absolute;
+  inset: 0;
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(10, 2, 4, 0.92);
+  padding: 32px;
+  text-align: center;
+}
+
+.error-box p {
+  max-width: 320px;
+  color: var(--text-dim);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
