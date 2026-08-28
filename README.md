@@ -4,9 +4,10 @@ A small static web app: tap a link, your **back (rear) camera** opens, a
 banner animates in asking you to **show your right hand**, and once it's
 detected the banner slides back out while an animated **rakhi** ties itself
 onto your wrist once — sized, rotated, and tracked live so it always fits —
-then fades out and a **"Happy Raksha Bandhan"** message slides in to close
-things out. The whole sequence plays exactly once per camera session: no
-looping, no re-triggering while the hand stays in view.
+then fades out and a plain, bold **"Happy Raksha Bandhan!"** floats into the
+center of the screen (no card, no background) to close things out. The
+whole sequence plays exactly once per camera session: no looping, no
+re-triggering while the hand stays in view.
 
 **Live app:** https://rajkumar542.github.io/raksha_bandhan/ (deploys
 automatically from `main` — see [Hosting](#hosting) below). Camera access
@@ -29,9 +30,7 @@ needs HTTPS, which GitHub Pages provides.
 3. **Motion text** — `#instruction-banner` sits off-screen
    (`translateY(-140%)`) and slides down when the camera is ready, then
    slides back up once a hand is confirmed. Pure CSS transition, no JS
-   animation loop needed. The same banner reappears once more at the end —
-   restyled gold via a `.final` class — with the closing "Happy Raksha
-   Bandhan" message.
+   animation loop needed.
 4. **Hand tracking** — [MediaPipe Tasks Vision — HandLandmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker)
    (loaded from jsDelivr/Google's model CDN, no server component) runs on
    every video frame via `requestAnimationFrame`. Handedness is used to
@@ -60,9 +59,11 @@ needs HTTPS, which GitHub Pages provides.
    have no `fill="freeze"` and would snap back to hidden the instant the
    single rep finished) so the whole rakhi draws in once and holds, fully
    assembled. After a short pause, `.rakhi-mount.fade-out` fades it out on
-   our own timing, and the closing message banner takes over — see the
+   our own timing, and `#final-message` fades/floats into view — see the
    `TIE_ON_MS` / `HOLD_AFTER_TIE_MS` / `FADE_MS` constants to retime any of
-   it.
+   it. Both the fade-out and the closing message are scheduled independently
+   up front (`commitRakhi`), not chained one-after-another, so a hiccup in
+   either step can't strand the other and leave the message stuck unshown.
 
 ## Running it
 

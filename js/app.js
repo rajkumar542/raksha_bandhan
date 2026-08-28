@@ -7,8 +7,9 @@
 // the animated rakhi SVG (assets/rakhi.svg) is live-injected into the DOM
 // at the wrist, sized/rotated every frame so it never outgrows the wrist.
 // The whole thing plays exactly once per camera session: the rakhi ties
-// on, holds, fades out, and a "Happy Raksha Bandhan" message slides in to
-// close it out — no looping, no re-triggering while the hand stays in view.
+// on, holds, fades out, and a plain "Happy Raksha Bandhan" message floats
+// into the center of the screen to close it out — no looping, no
+// re-triggering while the hand stays in view.
 
 import {
   HandLandmarker,
@@ -58,8 +59,6 @@ const WRIST_OFFSET_RATIO = 0.18;
 const TIE_ON_MS = 4033;
 const HOLD_AFTER_TIE_MS = 1500;
 const FADE_MS = 700;
-const ORIGINAL_INSTRUCTION = "Show your right hand in front of the camera";
-const FINAL_MESSAGE = "Happy Raksha Bandhan! 🎉";
 
 // ---------------------------------------------------------------------
 // DOM refs
@@ -75,7 +74,7 @@ const videoStageEl = document.getElementById("video-stage");
 const videoEl = document.getElementById("camera-feed");
 const rakhiMountEl = document.getElementById("rakhi-mount");
 const instructionBannerEl = document.getElementById("instruction-banner");
-const bannerTextEl = document.getElementById("banner-text");
+const finalMessageEl = document.getElementById("final-message");
 
 const loadingEl = document.getElementById("loading-indicator");
 const loadingTextEl = document.getElementById("loading-text");
@@ -105,7 +104,7 @@ let handStreak = 0;
 let smoothed = null; // { x, y, angle, width } in on-screen pixels
 let rafId = null;
 let lastVideoTime = -1;
-let sequenceTimer = null; // pending setTimeout id for the hold/fade/finish steps
+let sequenceTimers = []; // pending setTimeout ids for the fade/finish steps
 
 // ---------------------------------------------------------------------
 // Entry points
@@ -126,15 +125,13 @@ async function begin() {
     await Promise.all([loadModel(), loadRakhiMarkup()]);
 
     hideLoading();
-    clearTimeout(sequenceTimer);
-    sequenceTimer = null;
+    clearSequenceTimers();
     trackState = "waiting";
     handStreak = 0;
     smoothed = null;
     hideRakhi();
     rakhiMountEl.classList.remove("fade-out");
-    instructionBannerEl.classList.remove("final");
-    bannerTextEl.textContent = ORIGINAL_INSTRUCTION;
+    finalMessageEl.classList.remove("show");
     showBanner();
     startDetectionLoop();
   } catch (err) {
@@ -325,12 +322,19 @@ function startDetectionLoop() {
   rafId = requestAnimationFrame(loop);
 }
 
+function clearSequenceTimers() {
+  sequenceTimers.forEach(clearTimeout);
+  sequenceTimers = [];
+}
+
 /**
  * Commits to placing the rakhi: shows it once (playing its tie-on
  * animation exactly once, see loadRakhiMarkup), holds it fully assembled
- * for a beat, fades it out, then reveals the closing message. Runs on its
- * own timer so it finishes the same way regardless of what the hand does
- * in the meantime.
+ * for a beat, fades it out, then reveals the closing message. Both steps
+ * are scheduled up front, independently of each other, rather than
+ * chained (one timer's callback starting the next) — so a hiccup in one
+ * can never silently strand the other and leave the closing message
+ * stuck unshown.
  */
 function commitRakhi() {
   trackState = "banded";
@@ -338,21 +342,30 @@ function commitRakhi() {
   smoothed = null; // snap to the hand instead of easing in from nowhere
   showRakhi();
 
-  clearTimeout(sequenceTimer);
-  sequenceTimer = setTimeout(() => {
-    rakhiMountEl.classList.add("fade-out");
-    sequenceTimer = setTimeout(finishSequence, FADE_MS);
-  }, TIE_ON_MS + HOLD_AFTER_TIE_MS);
+  clearSequenceTimers();
+  const fadeAt = TIE_ON_MS + HOLD_AFTER_TIE_MS;
+  sequenceTimers.push(
+    setTimeout(() => {
+      try {
+        rakhiMountEl.classList.add("fade-out");
+      } catch (err) {
+        console.error("Failed to start rakhi fade-out:", err);
+      }
+    }, fadeAt),
+    setTimeout(finishSequence, fadeAt + FADE_MS)
+  );
 }
 
-/** Ends the one-shot sequence: rakhi is gone, closing message slides in. */
+/** Ends the one-shot sequence: rakhi is gone, closing message floats in. */
 function finishSequence() {
-  trackState = "complete";
-  hideRakhi();
-  rakhiMountEl.classList.remove("fade-out");
-  instructionBannerEl.classList.add("final");
-  bannerTextEl.textContent = FINAL_MESSAGE;
-  showBanner();
+  try {
+    trackState = "complete";
+    hideRakhi();
+    rakhiMountEl.classList.remove("fade-out");
+    finalMessageEl.classList.add("show");
+  } catch (err) {
+    console.error("Failed to finish the rakhi sequence:", err);
+  }
 }
 
 /**

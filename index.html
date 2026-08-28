@@ -51,12 +51,17 @@
         <div id="rakhi-mount" class="rakhi-mount"></div>
       </div>
 
-      <!-- Slides down from the top with the initial instruction, slides back
-           up once a hand is confirmed, then reappears once more — restyled
-           via the "final" class, see CSS — with the closing message after
-           the rakhi finishes its one-shot tie-on-and-fade sequence. -->
+      <!-- Slides down from the top with the initial instruction, then slides
+           back up once a hand is confirmed. -->
       <div id="instruction-banner" class="instruction-banner">
-        <span id="banner-text">Show your right hand in front of the camera</span>
+        <span>Show your right hand in front of the camera</span>
+      </div>
+
+      <!-- Closing message once the rakhi finishes its one-shot tie-on-and-fade
+           sequence: plain floating bold text, centered on screen, no card or
+           background — fades and drifts gently into place. -->
+      <div id="final-message" class="final-message" aria-live="polite">
+        <span>Happy Raksha Bandhan! 🎉</span>
       </div>
 
       <div id="loading-indicator" class="loading-indicator">
