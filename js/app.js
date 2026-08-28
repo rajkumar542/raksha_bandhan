@@ -52,9 +52,11 @@ const WRIST_OFFSET_RATIO = 0.18;
 // DOM refs
 // ---------------------------------------------------------------------
 
+// The start screen IS the "Open Camera" button — a plain full-screen tap
+// target, no card/title/copy — so both names point at the same element.
 const startScreenEl = document.getElementById("start-screen");
 const cameraScreenEl = document.getElementById("camera-screen");
-const openCameraBtn = document.getElementById("open-camera-link");
+const openCameraBtn = startScreenEl;
 
 const videoStageEl = document.getElementById("video-stage");
 const videoEl = document.getElementById("camera-feed");
