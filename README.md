@@ -115,3 +115,6 @@ assets/rakhi.svg   The animated rakhi artwork
   current Chrome, Safari, Edge, Firefox).
 - Nothing is recorded, stored, or uploaded — the camera stream and all hand
   tracking run entirely client-side in the browser.
+- If startup fails, the error screen names which step failed (camera vs.
+  hand tracking) and shows the raw error name/message in small print, so a
+  screenshot is enough to diagnose it without needing devtools.

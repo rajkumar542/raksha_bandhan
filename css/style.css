@@ -343,3 +343,11 @@ html, body {
   font-size: 14.5px;
   line-height: 1.5;
 }
+
+.error-detail {
+  font-size: 11.5px !important;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  opacity: 0.6;
+  word-break: break-word;
+  margin-top: -6px !important;
+}
