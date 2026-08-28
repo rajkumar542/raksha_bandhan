@@ -1,34 +1,44 @@
 # Raksha Bandhan — Virtual Rakhi Camera App
 
-A small static web app: tap a link, your **front camera** opens, a banner
-animates in asking you to **show your right hand**, and once it's detected
-the banner slides back out while an animated **rakhi** ties itself onto your
-wrist — sized and rotated live so it always fits, and tracks the wrist as it
-moves.
+A small static web app: tap a link, your **back (rear) camera** opens, a
+banner animates in asking you to **show your right hand**, and once it's
+detected the banner slides back out while an animated **rakhi** ties itself
+onto your wrist — sized and rotated live so it always fits, and tracks the
+wrist as it moves.
+
+**Live app:** https://rajkumar542.github.io/raksha_bandhan/ (deploys
+automatically from `main` — see [Hosting](#hosting) below). Camera access
+needs HTTPS, which GitHub Pages provides.
 
 ## How it works
 
 1. **Open Camera** (`index.html`) — a tap/click gesture requests
-   `getUserMedia({ video: { facingMode: 'user' } })`. The preview is
-   mirrored with CSS (`transform: scaleX(-1)`) for a natural, mirror-like
-   selfie view.
-2. **Flash** — a toggle in the top bar. Front cameras almost never expose a
-   hardware torch, so the app tries the real
+   `getUserMedia({ video: { facingMode: { exact: 'environment' } } })` (the
+   rear camera). If a device genuinely has no rear camera, that throws
+   `OverconstrainedError` and the app transparently retries with whatever
+   camera is available — mirroring the preview with CSS only in that
+   fallback case, since a rear camera should show the scene as-is, like a
+   normal photo, not like a mirror.
+2. **Flash** — a toggle in the top bar. Rear cameras usually expose a real
+   hardware torch, so the app tries the
    [`torch` capability](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackCapabilities/torch)
    first and transparently falls back to a simulated on-screen flash glow
-   when it isn't supported.
+   on the (rarer) devices where it isn't supported.
 3. **Motion text** — `#instruction-banner` sits off-screen
    (`translateY(-140%)`) and slides down when the camera is ready, then
-   slides back up once a right hand is confirmed. Pure CSS transition, no
-   JS animation loop needed.
+   slides back up once a hand is confirmed. Pure CSS transition, no JS
+   animation loop needed.
 4. **Hand tracking** — [MediaPipe Tasks Vision — HandLandmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker)
    (loaded from jsDelivr/Google's model CDN, no server component) runs on
    every video frame via `requestAnimationFrame`. Handedness is used to
-   find the **right** hand specifically (see the "raw vs. mirrored frame"
-   note in `js/app.js` — the model sees the un-mirrored camera frame, so its
-   left/right label is swapped to get the true anatomical hand). A short
-   streak of consecutive confident detections (and a longer streak of
-   misses before letting go) keeps the state stable and flicker-free.
+   *prefer* whichever detected hand looks like the right hand (matching
+   Raksha Bandhan tradition), but that relies on a mirroring convention
+   (see the note above `pickBestHand` in `js/app.js`) that isn't equally
+   reliable everywhere — so if no hand matches, the single most confident
+   hand in frame is used instead, rather than leaving a clearly-visible
+   hand undetected. A short streak of consecutive confident detections (and
+   a longer streak of misses before letting go) keeps the state stable and
+   flicker-free.
 5. **Rakhi placement** — `assets/rakhi.svg` (the original animated artwork,
    tie-on animation included) is injected live into the DOM — not drawn to
    a `<canvas>` — so its built-in animation actually plays. Every frame,
@@ -50,9 +60,27 @@ Camera access requires a secure context, so it must be served over
 npx http-server .        # or: python3 -m http.server 8080
 ```
 
-Then open the printed `http://localhost:...` URL on a device with a front
+Then open the printed `http://localhost:...` URL on a device with a rear
 camera (works great on mobile browsers over HTTPS too, e.g. via a tunnel or
 deployed to GitHub Pages).
+
+## Hosting
+
+[`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+publishes the site to GitHub Pages automatically on every push to `main`
+(and can be run manually from the Actions tab). It's a plain static site —
+no build step — so the workflow just uploads the repo (minus `.git`/`.github`)
+as the Pages artifact.
+
+If this is the first time Pages is being deployed for this repository, open
+**Settings → Pages** once and confirm the source is set to **GitHub
+Actions** (the `configure-pages` step in the workflow sets this
+automatically in most cases, but it's worth a quick check on the very first
+run). After that, the site is live at:
+
+```
+https://rajkumar542.github.io/raksha_bandhan/
+```
 
 ## Files
 
