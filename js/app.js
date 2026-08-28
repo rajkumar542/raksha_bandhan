@@ -55,10 +55,11 @@ const WRIST_OFFSET_RATIO = 0.18;
 // authored to run for 4.033s (see the loop fix in loadRakhiMarkup below),
 // after which we hold the fully-tied rakhi on screen for a beat, fade it
 // out, and reveal the closing message. FADE_MS must match the CSS
-// transition duration on .rakhi-mount.fade-out in style.css.
+// transition duration on .rakhi-mount.fade-out, and the .final-message
+// entrance transition, in style.css.
 const TIE_ON_MS = 4033;
-const HOLD_AFTER_TIE_MS = 1500;
-const FADE_MS = 700;
+const HOLD_AFTER_TIE_MS = 500;
+const FADE_MS = 350;
 
 // ---------------------------------------------------------------------
 // DOM refs
