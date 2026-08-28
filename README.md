@@ -59,11 +59,18 @@ needs HTTPS, which GitHub Pages provides.
    have no `fill="freeze"` and would snap back to hidden the instant the
    single rep finished) so the whole rakhi draws in once and holds, fully
    assembled. After a short pause, `.rakhi-mount.fade-out` fades it out on
-   our own timing, and `#final-message` fades/floats into view — see the
-   `TIE_ON_MS` / `HOLD_AFTER_TIE_MS` / `FADE_MS` constants to retime any of
-   it. Both the fade-out and the closing message are scheduled independently
-   up front (`commitRakhi`), not chained one-after-another, so a hiccup in
-   either step can't strand the other and leave the message stuck unshown.
+   our own timing, and `#final-message` fades/floats into view. Both the
+   fade-out and the closing message are scheduled independently up front
+   (`commitRakhi`), not chained one-after-another, so a hiccup in either
+   step can't strand the other and leave the message stuck unshown.
+7. **Pace** — the artwork is authored to draw itself in over ~4s, which
+   read as sluggish for this app, so `loadRakhiMarkup` also scales every
+   `dur`/`begin` value in it down by `SVG_TIME_SCALE` (0.45 by default),
+   uniformly compressing the whole authored timeline to ~1.8s without
+   changing its internal choreography. The hold/fade/reveal afterward
+   (`HOLD_AFTER_TIE_MS` / `FADE_MS`) is tuned to feel snappy too — retime
+   any of it via those constants (`FADE_MS` must stay matched to the CSS
+   transition durations on `.rakhi-mount.fade-out` and `.final-message`).
 
 ## Running it
 

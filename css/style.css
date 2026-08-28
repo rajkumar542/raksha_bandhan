@@ -199,7 +199,7 @@ html, body {
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
   opacity: 1;
   /* Duration must match FADE_MS in js/app.js. */
-  transition: opacity 0.35s ease;
+  transition: opacity 0.3s ease;
 }
 
 /* Added once the tie-on animation has played through and held for a beat —
@@ -269,7 +269,7 @@ html, body {
   transform: translateY(14px) scale(0.94);
   /* Duration should match FADE_MS in js/app.js, so the message finishes
      arriving right as the rakhi finishes fading out. */
-  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .final-message.show {
@@ -278,10 +278,10 @@ html, body {
 }
 
 .final-message span {
-  font-size: clamp(36px, 11vw, 64px);
+  font-size: clamp(48px, 16vw, 104px);
   font-weight: 800;
-  letter-spacing: 0.01em;
-  line-height: 1.25;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   background: linear-gradient(90deg, var(--gold), var(--saffron));
   -webkit-background-clip: text;
   background-clip: text;

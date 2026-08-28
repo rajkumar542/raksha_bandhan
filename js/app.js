@@ -51,15 +51,22 @@ const SMOOTH = 0.35; // exponential-smoothing weight for the new sample each fra
 const WRIST_WIDTH_RATIO = 0.62;
 const WRIST_OFFSET_RATIO = 0.18;
 
-// One-shot sequence timing: assets/rakhi.svg's own tie-on animation is
-// authored to run for 4.033s (see the loop fix in loadRakhiMarkup below),
-// after which we hold the fully-tied rakhi on screen for a beat, fade it
-// out, and reveal the closing message. FADE_MS must match the CSS
-// transition duration on .rakhi-mount.fade-out, and the .final-message
-// entrance transition, in style.css.
-const TIE_ON_MS = 4033;
-const HOLD_AFTER_TIE_MS = 500;
-const FADE_MS = 350;
+// One-shot sequence timing. assets/rakhi.svg's own tie-on animation is
+// authored to run for 4.033s — SVG_TIME_SCALE compresses every dur/begin
+// value in it by this factor at load time (see loadRakhiMarkup) so it
+// plays out faster while keeping its internal choreography intact, since
+// every timing value shrinks by the same proportion. TIE_ON_MS is that
+// scaled duration; keep it in sync if SVG_TIME_SCALE changes.
+const SVG_AUTHORED_TIE_ON_MS = 4033;
+const SVG_TIME_SCALE = 0.45;
+const TIE_ON_MS = Math.round(SVG_AUTHORED_TIE_ON_MS * SVG_TIME_SCALE);
+
+// After the tie-on finishes: hold the fully-tied rakhi on screen for a
+// beat, fade it out, and reveal the closing message. FADE_MS must match
+// the CSS transition duration on .rakhi-mount.fade-out and .final-message
+// in style.css.
+const HOLD_AFTER_TIE_MS = 400;
+const FADE_MS = 300;
 
 // ---------------------------------------------------------------------
 // DOM refs
@@ -303,9 +310,19 @@ async function loadRakhiMarkup() {
   // single rep finished — freezing them too keeps the whole assembled
   // rakhi visible together once the animation completes, so *our* fade-out
   // below is what actually makes it disappear, on our own timing.
+  //
+  // Every dur="Xs"/begin="Xs" in the file is also scaled down by
+  // SVG_TIME_SCALE, uniformly compressing the whole authored timeline —
+  // every stroke still draws in in the same relative order and proportion,
+  // just faster. (keyTimes values are fractions of dur, not absolute
+  // times, so they don't need touching.)
   rakhiSvgMarkup = raw
     .replace(/repeatCount="indefinite"/g, 'repeatCount="1"')
-    .replace(/attributeName="visibility" \/>/g, 'attributeName="visibility" fill="freeze" />');
+    .replace(/attributeName="visibility" \/>/g, 'attributeName="visibility" fill="freeze" />')
+    .replace(/(dur|begin)="([\d.]+)s"/g, (_match, attr, num) => {
+      const scaled = (parseFloat(num) * SVG_TIME_SCALE).toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+      return `${attr}="${scaled || 0}s"`;
+    });
 }
 
 // ---------------------------------------------------------------------
