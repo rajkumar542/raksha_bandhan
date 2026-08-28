@@ -11,17 +11,16 @@
 <body>
 
   <!-- ============ START SCREEN ============ -->
-  <section id="start-screen" class="screen">
-    <div class="start-card">
-      <div class="start-emoji" aria-hidden="true">🧵</div>
-      <h1>Raksha Bandhan</h1>
-      <p>Tap below to open your back camera and receive a virtual rakhi on your wrist.</p>
-      <button id="open-camera-link" class="link-button" type="button">
-        Open Camera
-      </button>
-      <p class="hint">Your camera stream stays on your device — nothing is recorded or uploaded.</p>
-    </div>
-  </section>
+  <!-- Deliberately just a plain full-screen tap target: the browser needs a
+       user gesture before it will grant camera access, so this can't be
+       skipped entirely, but there's no card, title, or copy — tapping
+       anywhere goes straight into opening the camera. -->
+  <button id="start-screen" class="screen start-screen" type="button" aria-label="Tap to open camera">
+    <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true">
+      <path fill="currentColor" d="M9 3l-1.83 2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+    </svg>
+    <span>Tap to open camera</span>
+  </button>
 
   <!-- ============ CAMERA SCREEN ============ -->
   <section id="camera-screen" class="screen hidden">
