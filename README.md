@@ -6,6 +6,10 @@ the banner slides back out while an animated **rakhi** ties itself onto your
 wrist — sized and rotated live so it always fits, and tracks the wrist as it
 moves.
 
+**Live app:** https://rajkumar542.github.io/raksha_bandhan/ (deploys
+automatically from `main` — see [Hosting](#hosting) below). Camera access
+needs HTTPS, which GitHub Pages provides.
+
 ## How it works
 
 1. **Open Camera** (`index.html`) — a tap/click gesture requests
@@ -53,6 +57,24 @@ npx http-server .        # or: python3 -m http.server 8080
 Then open the printed `http://localhost:...` URL on a device with a front
 camera (works great on mobile browsers over HTTPS too, e.g. via a tunnel or
 deployed to GitHub Pages).
+
+## Hosting
+
+[`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+publishes the site to GitHub Pages automatically on every push to `main`
+(and can be run manually from the Actions tab). It's a plain static site —
+no build step — so the workflow just uploads the repo (minus `.git`/`.github`)
+as the Pages artifact.
+
+If this is the first time Pages is being deployed for this repository, open
+**Settings → Pages** once and confirm the source is set to **GitHub
+Actions** (the `configure-pages` step in the workflow sets this
+automatically in most cases, but it's worth a quick check on the very first
+run). After that, the site is live at:
+
+```
+https://rajkumar542.github.io/raksha_bandhan/
+```
 
 ## Files
 
