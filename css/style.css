@@ -183,23 +183,29 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Mirrored so the preview behaves like a real mirror (natural selfie UX) */
-  transform: scaleX(-1);
   background: #000;
 }
 
-/* Mirrored to match the video; the rakhi is positioned using raw
-   (un-mirrored) camera-space coordinates and this transform aligns it
-   visually with the mirrored preview, exactly like the video itself. */
 .overlay-mirror {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  transform: scaleX(-1);
   z-index: 10;
   pointer-events: none;
   overflow: visible;
+}
+
+/* The rear camera shows the scene as-is (like a normal photo), so no
+   mirroring by default. JS only adds .mirrored on #video-stage if the
+   browser ends up handing us a front camera instead (e.g. a device with no
+   rear camera) — then both the video and the rakhi overlay (which is
+   positioned using raw, un-mirrored landmark coordinates) flip together so
+   the preview behaves like a natural selfie mirror and the rakhi still
+   lines up with the hand on screen. */
+.video-stage.mirrored #camera-feed,
+.video-stage.mirrored .overlay-mirror {
+  transform: scaleX(-1);
 }
 
 /* Positioned/rotated/sized every frame from JS to sit on the tracked wrist.

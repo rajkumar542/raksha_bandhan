@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>Raksha Bandhan — Virtual Rakhi</title>
-<meta name="description" content="Open your front camera, show your right hand, and receive a virtual rakhi on your wrist.">
+<meta name="description" content="Open your back camera, show your right hand, and receive a virtual rakhi on your wrist.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧵</text></svg>">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -15,7 +15,7 @@
     <div class="start-card">
       <div class="start-emoji" aria-hidden="true">🧵</div>
       <h1>Raksha Bandhan</h1>
-      <p>Tap below to open your front camera and receive a virtual rakhi on your wrist.</p>
+      <p>Tap below to open your back camera and receive a virtual rakhi on your wrist.</p>
       <button id="open-camera-link" class="link-button" type="button">
         Open Camera
       </button>
@@ -42,12 +42,12 @@
     <div class="video-stage" id="video-stage">
       <video id="camera-feed" autoplay playsinline muted></video>
 
-      <!-- Mirrored to match the video (see CSS): the rakhi is positioned using
-           raw, un-mirrored landmark coordinates and this wrapper's flip lines
-           it up with what's on screen, exactly like the video itself. The
-           actual rakhi markup (assets/rakhi.svg) is injected live into
-           #rakhi-mount so its built-in tie-on animation really plays,
-           instead of drawing a frozen frame to a canvas. -->
+      <!-- Only mirrored (see CSS) if JS ends up falling back to a front
+           camera; the rakhi is positioned using raw landmark coordinates
+           and this wrapper flips alongside the video so the two always
+           line up. The actual rakhi markup (assets/rakhi.svg) is injected
+           live into #rakhi-mount so its built-in tie-on animation really
+           plays, instead of drawing a frozen frame to a canvas. -->
       <div id="overlay-mirror" class="overlay-mirror">
         <div id="rakhi-mount" class="rakhi-mount"></div>
       </div>

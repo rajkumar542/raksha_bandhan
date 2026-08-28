@@ -1,11 +1,11 @@
 // Raksha Bandhan — virtual rakhi camera app
 //
-// Flow: user taps "Open Camera" -> front camera opens -> an instructional
-// banner slides down asking for the right hand -> MediaPipe HandLandmarker
-// tracks hands in the live video -> once the RIGHT hand is confidently and
-// steadily detected, the banner slides back up and out, and the animated
-// rakhi SVG (assets/rakhi.svg) is live-injected into the DOM at the wrist,
-// sized/rotated every frame so it never outgrows the wrist.
+// Flow: user taps "Open Camera" -> back (rear) camera opens -> an
+// instructional banner slides down asking to show a hand -> MediaPipe
+// HandLandmarker tracks hands in the live video -> once a hand is
+// confidently and steadily detected, the banner slides back up and out, and
+// the animated rakhi SVG (assets/rakhi.svg) is live-injected into the DOM
+// at the wrist, sized/rotated every frame so it never outgrows the wrist.
 
 import {
   HandLandmarker,
@@ -37,8 +37,8 @@ const MIDDLE_MCP = 9;
 const PINKY_MCP = 17;
 
 // Detection tuning.
-const MIN_HAND_SCORE = 0.6;
-const CONFIRM_FRAMES = 6; // consecutive frames of a steady right hand before we commit
+const MIN_HAND_SCORE = 0.5;
+const CONFIRM_FRAMES = 5; // consecutive frames of a steady hand before we commit
 const LOST_FRAMES = 18; // consecutive frames without it before we let go (avoids flicker)
 const SMOOTH = 0.35; // exponential-smoothing weight for the new sample each frame
 
@@ -81,10 +81,11 @@ let rakhiSvgMarkup = null;
 let torchSupported = false;
 let torchOn = false;
 let flashSimOn = false;
+let isMirrored = false; // true only if the browser ends up giving us a front camera
 
 /** @type {"waiting" | "banded"} */
 let trackState = "waiting";
-let rightStreak = 0;
+let handStreak = 0;
 let lostStreak = 0;
 let smoothed = null; // { x, y, angle, width } in on-screen pixels
 let rafId = null;
@@ -110,7 +111,7 @@ async function begin() {
 
     hideLoading();
     trackState = "waiting";
-    rightStreak = 0;
+    handStreak = 0;
     lostStreak = 0;
     smoothed = null;
     hideRakhi();
@@ -135,11 +136,20 @@ async function startCamera() {
 
   stream = await navigator.mediaDevices.getUserMedia({
     video: {
-      facingMode: "user",
+      facingMode: { exact: "environment" },
       width: { ideal: 1280 },
       height: { ideal: 720 },
     },
     audio: false,
+  }).catch(async (err) => {
+    // Some laptops/desktops (and a few devices) have no rear camera at all,
+    // so `exact: "environment"` throws OverconstrainedError. Fall back to
+    // whatever camera is available rather than dead-ending the whole flow.
+    if (err.name !== "OverconstrainedError") throw err;
+    return navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
   });
 
   videoEl.srcObject = stream;
@@ -150,9 +160,14 @@ async function startCamera() {
   await videoEl.play();
 
   const track = stream.getVideoTracks()[0];
+  const settings = track.getSettings ? track.getSettings() : {};
   const caps = track.getCapabilities ? track.getCapabilities() : {};
-  // Front-facing cameras very rarely expose a hardware torch; when they
-  // don't, the flash toggle below falls back to a simulated screen-flash.
+  // The rear camera is not mirrored on screen — it isn't a selfie view, it
+  // shows the scene as the camera actually sees it, same as a photo.
+  isMirrored = settings.facingMode === "user";
+  videoStageEl.classList.toggle("mirrored", isMirrored);
+  // Rear cameras usually expose a real hardware torch (unlike front ones);
+  // when one doesn't, the flash toggle below falls back to a screen-flash.
   torchSupported = !!caps.torch;
   torchOn = false;
 }
@@ -247,17 +262,17 @@ function startDetectionLoop() {
     lastVideoTime = videoEl.currentTime;
 
     const results = handLandmarker.detectForVideo(videoEl, performance.now());
-    const rightHand = pickRightHand(results);
+    const hand = pickBestHand(results);
 
-    if (rightHand) {
-      rightStreak++;
+    if (hand) {
+      handStreak++;
       lostStreak = 0;
     } else {
       lostStreak++;
-      rightStreak = 0;
+      handStreak = 0;
     }
 
-    if (trackState === "waiting" && rightStreak >= CONFIRM_FRAMES) {
+    if (trackState === "waiting" && handStreak >= CONFIRM_FRAMES) {
       trackState = "banded";
       hideBanner();
       smoothed = null; // snap to the hand instead of easing in from nowhere
@@ -268,8 +283,8 @@ function startDetectionLoop() {
       showBanner();
     }
 
-    if (trackState === "banded" && rightHand) {
-      updateRakhiPlacement(rightHand.landmarks);
+    if (trackState === "banded" && hand) {
+      updateRakhiPlacement(hand.landmarks);
     }
   };
 
@@ -277,30 +292,37 @@ function startDetectionLoop() {
 }
 
 /**
- * Finds the best-scoring RIGHT hand in a HandLandmarker result.
+ * Finds the best hand to place the rakhi on in a HandLandmarker result.
  *
- * The video frame handed to the model is the raw (un-mirrored) camera
- * frame, but MediaPipe's handedness labelling assumes a mirrored/selfie
- * input. Since ours isn't mirrored, we swap the label to recover the
- * person's true anatomical hand (per MediaPipe's own documented caveat).
+ * We ask for the right hand (matching Raksha Bandhan tradition), preferring
+ * whichever detected hand appears to be it. But handedness relies on a
+ * mirroring convention (MediaPipe's labelling assumes a mirrored/selfie
+ * input; the raw frame we feed it here isn't, so the true anatomical hand
+ * is the opposite of the reported label) that isn't equally reliable across
+ * every browser/device — so a confidently-tracked hand is never left
+ * un-detected just because that convention didn't hold: with no "right"
+ * match, we fall back to the single most confident hand in frame.
  */
-function pickRightHand(results) {
+function pickBestHand(results) {
   if (!results || !results.landmarks || !results.landmarks.length) return null;
   const handednessList = results.handedness || results.handednesses || [];
 
   let best = null;
+  let bestRight = null;
   for (let i = 0; i < results.landmarks.length; i++) {
     const category = handednessList[i] && handednessList[i][0];
-    if (!category) continue;
+    const score = category ? category.score : 0;
+    if (score < MIN_HAND_SCORE) continue;
+
+    const candidate = { landmarks: results.landmarks[i], score };
+    if (!best || score > best.score) best = candidate;
 
     const realHand = category.categoryName === "Left" ? "Right" : "Left";
-    if (realHand !== "Right" || category.score < MIN_HAND_SCORE) continue;
-
-    if (!best || category.score > best.score) {
-      best = { landmarks: results.landmarks[i], score: category.score };
+    if (realHand === "Right" && (!bestRight || score > bestRight.score)) {
+      bestRight = candidate;
     }
   }
-  return best;
+  return bestRight || best;
 }
 
 // ---------------------------------------------------------------------
@@ -451,7 +473,7 @@ function describeError(err) {
     return "Camera access was denied. Please allow the camera permission and try again.";
   }
   if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-    return "No front-facing camera was found on this device.";
+    return "No camera was found on this device.";
   }
   if (name === "NotReadableError" || name === "TrackStartError") {
     return "The camera is already in use by another app. Close it and try again.";
