@@ -6,6 +6,9 @@
 // confidently and steadily detected, the banner slides back up and out, and
 // the animated rakhi SVG (assets/rakhi.svg) is live-injected into the DOM
 // at the wrist, sized/rotated every frame so it never outgrows the wrist.
+// The whole thing plays exactly once per camera session: the rakhi ties
+// on, holds, fades out, and a "Happy Raksha Bandhan" message slides in to
+// close it out — no looping, no re-triggering while the hand stays in view.
 
 import {
   HandLandmarker,
@@ -39,7 +42,6 @@ const PINKY_MCP = 17;
 // Detection tuning.
 const MIN_HAND_SCORE = 0.5;
 const CONFIRM_FRAMES = 5; // consecutive frames of a steady hand before we commit
-const LOST_FRAMES = 18; // consecutive frames without it before we let go (avoids flicker)
 const SMOOTH = 0.35; // exponential-smoothing weight for the new sample each frame
 
 // A wrist is narrower than the hand's knuckle row, and sits a little
@@ -47,6 +49,17 @@ const SMOOTH = 0.35; // exponential-smoothing weight for the new sample each fra
 // the index-to-pinky knuckle span) approximate both.
 const WRIST_WIDTH_RATIO = 0.62;
 const WRIST_OFFSET_RATIO = 0.18;
+
+// One-shot sequence timing: assets/rakhi.svg's own tie-on animation is
+// authored to run for 4.033s (see the loop fix in loadRakhiMarkup below),
+// after which we hold the fully-tied rakhi on screen for a beat, fade it
+// out, and reveal the closing message. FADE_MS must match the CSS
+// transition duration on .rakhi-mount.fade-out in style.css.
+const TIE_ON_MS = 4033;
+const HOLD_AFTER_TIE_MS = 1500;
+const FADE_MS = 700;
+const ORIGINAL_INSTRUCTION = "Show your right hand in front of the camera";
+const FINAL_MESSAGE = "Happy Raksha Bandhan! 🎉";
 
 // ---------------------------------------------------------------------
 // DOM refs
@@ -62,6 +75,7 @@ const videoStageEl = document.getElementById("video-stage");
 const videoEl = document.getElementById("camera-feed");
 const rakhiMountEl = document.getElementById("rakhi-mount");
 const instructionBannerEl = document.getElementById("instruction-banner");
+const bannerTextEl = document.getElementById("banner-text");
 
 const loadingEl = document.getElementById("loading-indicator");
 const loadingTextEl = document.getElementById("loading-text");
@@ -85,13 +99,13 @@ let torchOn = false;
 let flashSimOn = false;
 let isMirrored = false; // true only if the browser ends up giving us a front camera
 
-/** @type {"waiting" | "banded"} */
+/** @type {"waiting" | "banded" | "complete"} */
 let trackState = "waiting";
 let handStreak = 0;
-let lostStreak = 0;
 let smoothed = null; // { x, y, angle, width } in on-screen pixels
 let rafId = null;
 let lastVideoTime = -1;
+let sequenceTimer = null; // pending setTimeout id for the hold/fade/finish steps
 
 // ---------------------------------------------------------------------
 // Entry points
@@ -112,11 +126,15 @@ async function begin() {
     await Promise.all([loadModel(), loadRakhiMarkup()]);
 
     hideLoading();
+    clearTimeout(sequenceTimer);
+    sequenceTimer = null;
     trackState = "waiting";
     handStreak = 0;
-    lostStreak = 0;
     smoothed = null;
     hideRakhi();
+    rakhiMountEl.classList.remove("fade-out");
+    instructionBannerEl.classList.remove("final");
+    bannerTextEl.textContent = ORIGINAL_INSTRUCTION;
     showBanner();
     startDetectionLoop();
   } catch (err) {
@@ -246,7 +264,21 @@ async function loadRakhiMarkup() {
   if (rakhiSvgMarkup) return;
   const res = await fetch(RAKHI_SVG_URL);
   if (!res.ok) throw new Error("rakhi-asset");
-  rakhiSvgMarkup = await res.text();
+  const raw = await res.text();
+
+  // The artwork's tie-on animation is authored to loop forever
+  // (repeatCount="indefinite" on every <animate>/<animateTransform>, all
+  // sharing one 4.033s cycle) — great for a standalone sticker, but not for
+  // a one-shot "ties on once" moment. Capping every repeat count at 1 stops
+  // the loop. The visibility toggles that reveal each stroke as it "draws
+  // in" have no fill="freeze" (unlike the pop-in scale animations, which
+  // already do), so left alone they'd snap back to hidden the instant the
+  // single rep finished — freezing them too keeps the whole assembled
+  // rakhi visible together once the animation completes, so *our* fade-out
+  // below is what actually makes it disappear, on our own timing.
+  rakhiSvgMarkup = raw
+    .replace(/repeatCount="indefinite"/g, 'repeatCount="1"')
+    .replace(/attributeName="visibility" \/>/g, 'attributeName="visibility" fill="freeze" />');
 }
 
 // ---------------------------------------------------------------------
@@ -257,6 +289,12 @@ function startDetectionLoop() {
   if (rafId) cancelAnimationFrame(rafId);
 
   const loop = () => {
+    // Once the one-shot sequence has played out, there's nothing left to
+    // track — stop scheduling frames entirely rather than idling forever.
+    if (trackState === "complete") {
+      rafId = null;
+      return;
+    }
     rafId = requestAnimationFrame(loop);
 
     if (!handLandmarker || videoEl.readyState < 2) return;
@@ -266,31 +304,55 @@ function startDetectionLoop() {
     const results = handLandmarker.detectForVideo(videoEl, performance.now());
     const hand = pickBestHand(results);
 
+    if (trackState === "waiting") {
+      handStreak = hand ? handStreak + 1 : 0;
+      if (handStreak >= CONFIRM_FRAMES) {
+        commitRakhi();
+      }
+      return;
+    }
+
+    // trackState === "banded": already committed to the one-shot sequence,
+    // which is now running on its own timer (see commitRakhi) regardless of
+    // whether we keep seeing the hand — a brief tracking hiccup mid-animation
+    // no longer cancels or restarts anything. Keep following the wrist for
+    // as long as we can see it, purely for a smoother visual.
     if (hand) {
-      handStreak++;
-      lostStreak = 0;
-    } else {
-      lostStreak++;
-      handStreak = 0;
-    }
-
-    if (trackState === "waiting" && handStreak >= CONFIRM_FRAMES) {
-      trackState = "banded";
-      hideBanner();
-      smoothed = null; // snap to the hand instead of easing in from nowhere
-      showRakhi();
-    } else if (trackState === "banded" && lostStreak >= LOST_FRAMES) {
-      trackState = "waiting";
-      hideRakhi();
-      showBanner();
-    }
-
-    if (trackState === "banded" && hand) {
       updateRakhiPlacement(hand.landmarks);
     }
   };
 
   rafId = requestAnimationFrame(loop);
+}
+
+/**
+ * Commits to placing the rakhi: shows it once (playing its tie-on
+ * animation exactly once, see loadRakhiMarkup), holds it fully assembled
+ * for a beat, fades it out, then reveals the closing message. Runs on its
+ * own timer so it finishes the same way regardless of what the hand does
+ * in the meantime.
+ */
+function commitRakhi() {
+  trackState = "banded";
+  hideBanner();
+  smoothed = null; // snap to the hand instead of easing in from nowhere
+  showRakhi();
+
+  clearTimeout(sequenceTimer);
+  sequenceTimer = setTimeout(() => {
+    rakhiMountEl.classList.add("fade-out");
+    sequenceTimer = setTimeout(finishSequence, FADE_MS);
+  }, TIE_ON_MS + HOLD_AFTER_TIE_MS);
+}
+
+/** Ends the one-shot sequence: rakhi is gone, closing message slides in. */
+function finishSequence() {
+  trackState = "complete";
+  hideRakhi();
+  rakhiMountEl.classList.remove("fade-out");
+  instructionBannerEl.classList.add("final");
+  bannerTextEl.textContent = FINAL_MESSAGE;
+  showBanner();
 }
 
 /**
@@ -416,9 +478,9 @@ function renderRakhiAt({ x, y, angle, width }) {
 
 function showRakhi() {
   if (!rakhiSvgMarkup) return;
-  // Re-inserting fresh markup restarts the SVG's own SMIL "tying on"
-  // animation from the beginning, so it replays each time the hand
-  // reappears rather than only once on first load.
+  // Inserting the markup starts the SVG's own (now one-shot, see
+  // loadRakhiMarkup) "tying on" animation. commitRakhi only calls this
+  // once per session, so it plays exactly once, never replaying.
   rakhiMountEl.innerHTML = rakhiSvgMarkup;
 }
 

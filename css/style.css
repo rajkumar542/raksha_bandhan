@@ -197,6 +197,16 @@ html, body {
   height: 0;
   pointer-events: none;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  opacity: 1;
+  /* Duration must match FADE_MS in js/app.js. */
+  transition: opacity 0.7s ease;
+}
+
+/* Added once the tie-on animation has played through and held for a beat —
+   this is what actually makes the rakhi disappear, on our own timing,
+   rather than relying on the artwork's own (now one-shot) animation. */
+.rakhi-mount.fade-out {
+  opacity: 0;
 }
 
 .rakhi-mount svg {
@@ -237,6 +247,19 @@ html, body {
   padding: 10px 20px;
   border-radius: 999px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* The one-time closing message ("Happy Raksha Bandhan!"), reusing the same
+   slide-down banner but restyled to feel celebratory rather than
+   instructional — gold instead of the muted maroon instruction pill. */
+.instruction-banner.final span {
+  font-size: 19px;
+  color: #2a1400;
+  background: linear-gradient(90deg, var(--gold), var(--saffron));
+  border-color: rgba(255, 255, 255, 0.5);
+  text-shadow: none;
+  box-shadow: 0 4px 18px rgba(255, 213, 79, 0.45);
 }
 
 /* ---------------- Loading / error ---------------- */
